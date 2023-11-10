@@ -1,4 +1,4 @@
-name = "dim-alert"
+name = "worker-name"
 main = "src/index.js"
 compatibility_date = "2023-10-16"
 node_compat=true

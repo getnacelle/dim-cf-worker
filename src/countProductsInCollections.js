@@ -3,30 +3,22 @@ export async function countProductsInCollections(env) {
 	const shopifyAdminToken = env.SHOPIFY_ADMIN_TOKEN;
 	const productsCountShopifyEndpoint = `${shopifyAdminEndpoint}products/count.json`;
 	const nacelleEndpoint = env.NACELLE_ENDPOINT;
-	const sourceEntryIds = `[
-		"gid://shopify/Collection/392536719618",
-		"gid://shopify/Collection/392536785154",
-		"gid://shopify/Collection/392536850690",
-		"gid://shopify/Collection/392625717506",
-		"gid://shopify/Collection/392666579202",
-	]`;
-	const shopifyCollectionIds = [392536719618, 392536785154, 392536850690, 392625717506, 392666579202];
-	const shopifyData = await fetchDataFromShopify(productsCountShopifyEndpoint, shopifyAdminToken, shopifyCollectionIds);
+	const sourceEntryIds = [];
+	const shopifyData = await fetchDataFromShopify(productsCountShopifyEndpoint, shopifyAdminToken, sourceEntryIds);
 	const nacelleData = await fetchDataFromNacelle(nacelleEndpoint, sourceEntryIds);
 	const comparisonResult = await compareData(shopifyData, nacelleData);
-
 	for (const result of comparisonResult) {
 		if (comparisonResult) {
 			await sendSlackMessage(env, result.message);
 		}
 	}
 
-	return new Response('Monitoring check complete!', { status: 200 });
+	return new Response("Monitoring check complete!", { status: 200 });
 }
 
 async function fetchDataFromNacelle(endpoint, sourceEntryIds) {
 	const query = `query collectionQuery {
-    allProductCollections(filter: {sourceEntryIds: ${sourceEntryIds}}) {
+    allProductCollections(filter: {sourceEntryIds: ${JSON.stringify(sourceEntryIds)}}) {
       edges {
 				node {
           sourceEntryId
@@ -41,9 +33,9 @@ async function fetchDataFromNacelle(endpoint, sourceEntryIds) {
     }
   }`;
 	const response = await fetch(endpoint, {
-		method: 'POST',
+		method: "POST",
 		headers: {
-			'Content-Type': 'application/json',
+			"Content-Type": "application/json",
 		},
 		body: JSON.stringify({ query }),
 	});
@@ -57,18 +49,19 @@ async function fetchDataFromNacelle(endpoint, sourceEntryIds) {
 	return newDataArray;
 }
 
-async function fetchDataFromShopify(endpoint, token, collections) {
+async function fetchDataFromShopify(endpoint, token, sourceEntryIds) {
 	const dataArr = [];
-	for (const collectionId of collections) {
-		const url = `${endpoint}?status=active&collection_id=${collectionId}`;
+	for (const collection of sourceEntryIds) {
+		let collectionId = collection.split("/").pop();
+		let url = `${endpoint}?status=active&collection_id=${collectionId}`;
 		const response = await fetch(url, {
-			method: 'GET',
+			method: "GET",
 			headers: {
-				'X-Shopify-Access-Token': token,
+				"X-Shopify-Access-Token": token,
 			},
 		});
 		const data = await response.json();
-		const sourceEntryId = `gid://shopify/Collection/${collectionId}`;
+		const sourceEntryId = collection;
 		const count = data.count;
 		dataArr.push({ sourceEntryId, count });
 	}
@@ -76,6 +69,17 @@ async function fetchDataFromShopify(endpoint, token, collections) {
 }
 
 async function compareData(data1, data2) {
+	function compare(a, b) {
+		if (a.sourceEntryId < b.sourceEntryId) {
+			return -1;
+		}
+		if (a.sourceEntryId > b.sourceEntryId) {
+			return 1;
+		}
+		return 0;
+	}
+	data1.sort(compare);
+	data2.sort(compare);
 	const result = [];
 	for (let i = 0; i < data1.length; i++) {
 		const entry1 = data1[i];
@@ -98,13 +102,29 @@ async function compareData(data1, data2) {
 async function sendSlackMessage(env, message) {
 	const slackWebhookUrl = env.SLACK_WEBHOOK_URL;
 	const payload = {
-		text: message,
+		blocks: [
+			{
+				type: "header",
+				text: {
+					type: "plain_text",
+					text: "Data Checker",
+					emoji: true,
+				},
+			},
+			{
+				type: "section",
+				text: {
+					type: "mrkdwn",
+					text: message,
+				},
+			},
+		],
 	};
 
 	await fetch(slackWebhookUrl, {
-		method: 'POST',
+		method: "POST",
 		headers: {
-			'Content-Type': 'application/json',
+			"Content-Type": "application/json",
 		},
 		body: JSON.stringify(payload),
 	});
