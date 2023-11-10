@@ -1,0 +1,15 @@
+name = "dim-alert"
+main = "src/index.js"
+compatibility_date = "2023-10-16"
+node_compat=true
+usage_model = "bundled"
+env = { }
+[vars]
+SHOPIFY_ENDPOINT = "https://iraj-test-shop.myshopify.com/api/2023-07/graphql.json"
+NACELLE_ENDPOINT = "https://storefront.api.nacelle.com/graphql/v1/spaces/695d6428-cb9f-46f3-ae6e-b995b0f76158"
+SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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"
+SHOPIFY_ADMIN_ENDPOINT = "https://iraj-test-shop.myshopify.com/admin/api/2023-07/"
+SHOPIFY_STOREFRONT_TOKEN = "9b5a682bfcfbca2c10fa041daf0dd610"
+SHOPIFY_ADMIN_TOKEN = "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"
+[triggers]
+crons = [ "5 */1 * * *", "7 */1 * * *", "9 */1 * * *" ]
